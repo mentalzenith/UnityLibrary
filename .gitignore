@@ -1,0 +1,15 @@
+Library
+Temp
+Build
+*.sln
+*.csproj
+*.userprefs
+
+#Michael’s debugging class
+Assets/Editor/ExecuteTest.cs.meta
+Assets/Editor/ExitPlayModeOnScriptCompile.cs
+Assets/Editor/ExitPlayModeOnScriptCompile.cs.meta
+Assets/Editor/ExecuteTest.cs
+Assets/Scripts/Test.cs
+Assets/Scripts/Test.cs.meta
+*.DS_Store
