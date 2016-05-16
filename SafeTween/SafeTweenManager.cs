@@ -20,13 +20,16 @@ namespace SafeTween
             }
         }
 
-        static Dictionary<object,Tweener> tweeners;
+        static Dictionary<object,List<Tweener>> tweeners;
         static List<Tweener> playing;
         static List<Tweener> adding;
         static List<Tweener> stopping;
 
         static void CreateManager()
         {
+            if (_instance != null)
+                return;
+
             var go = new GameObject("[SafeTweenmanager]");
             _instance = go.AddComponent<SafeTweenManager>();
             Init();
@@ -34,185 +37,466 @@ namespace SafeTween
 
         static void Init()
         {
-            tweeners = new Dictionary<object, Tweener>();
+            tweeners = new Dictionary<object, List<Tweener>>();
             adding = new List<Tweener>();
             playing = new List<Tweener>();
             stopping = new List<Tweener>();
         }
 
-        public void Add(object o, Tweener tweener)
-        {
-            //tweeners.Add(o, tweener);
-            Play(tweener);
-        }
-
         public static void Stop(Tweener tweener)
         {
-//            playing.Remove(tweener);
+            CreateManager();
             stopping.Add(tweener);
         }
 
         public static void Play(Tweener tweener)
         {
+            CreateManager();
             adding.Add(tweener);
         }
 
         void Update()
         {
-            playing.AddRange(adding);
+            foreach (var tweener in adding)
+                if (!playing.Contains(tweener))
+                    playing.Add(tweener);
             adding.Clear();
-
-            foreach (var tweener in playing)
-                tweener.Update();
 
             foreach (var tweener in stopping)
                 playing.Remove(tweener);
             stopping.Clear();
+
+            foreach (var tweener in playing)
+                tweener.Update();
         }
     }
 
     public class Tweener
     {
-        List<TweenPropertyBase> tweenProperties;
+        List<TweenProperty> tweenProperties;
+        public float speed = 1;
         float time;
+        float duration;
+        bool isReverse;
+
+        protected Action OnForwardAction;
+        protected Action OnBackwardAction;
+        protected Action OnForwardCompletedAction;
+        protected Action OnBackwardCompletedAction;
+
+        public float normalizedTime { get { return time / duration; } }
 
         public Tweener()
         {
-            tweenProperties = new List<TweenPropertyBase>();
+            tweenProperties = new List<TweenProperty>();
         }
 
-        public void Add(TweenPropertyBase tweenProperty)
+        public void Add(TweenProperty tweenProperty)
         {
             tweenProperty.tweener = this;
             tweenProperty.isPlaying = true;
             tweenProperties.Add(tweenProperty);
+
+            if (tweenProperty.endTime > duration)
+                duration = tweenProperty.endTime;
         }
 
+        /// <summary>
+        /// Reset to start position
+        /// </summary>
+        public void Reset()
+        {
+            foreach (var property in tweenProperties)
+                property.UpdateValue(0);
+            time = 0;
+        }
+
+        /// <summary>
+        /// Set to end position
+        /// </summary>
+        public void SetToEnd()
+        {
+            foreach (var property in tweenProperties)
+                property.UpdateValue(1);
+            time = duration;
+        }
+
+        /// <summary>
+        /// Play from start
+        /// </summary>
         public void Play()
         {
-            time = 0;
+            foreach (var property in tweenProperties)
+                property.UpdateValue(0);
+            PlayForward(0);
+        }
+
+        /// <summary>
+        /// Play forward from current position
+        /// </summary>
+        public void PlayForward()
+        {
+            PlayForward(time);
+        }
+
+        /// <summary>
+        /// Play forward from position
+        /// </summary>
+        /// <param name="time">position</param>
+        public void PlayForward(float time)
+        {
+            foreach (var property in tweenProperties)
+            {
+                property.isPlaying = true;
+                property.isReverse = false;
+            }
+
+            if (OnForwardAction != null)
+                OnForwardAction();
+
+            this.time = time;
+            isReverse = false;
             SafeTweenManager.Play(this);
         }
 
+        /// <summary>
+        /// Play backward from end
+        /// </summary>
+        public void Reverse()
+        {
+            foreach (var property in tweenProperties)
+                property.UpdateValue(1);
+            PlayBackward(duration);
+        }
+
+        /// <summary>
+        /// Play backward from current position
+        /// </summary>
+        public void PlayBackward()
+        {
+            PlayBackward(time);
+        }
+
+        /// <summary>
+        /// Play backward from position
+        /// </summary>
+        /// <param name="time">position</param>
+        public void PlayBackward(float time)
+        {
+            foreach (var property in tweenProperties)
+            {
+                property.isPlaying = true;
+                property.isReverse = true;
+            }
+
+            if (OnBackwardAction != null)
+                OnBackwardAction();
+
+            time = duration;
+            isReverse = true;
+            SafeTweenManager.Play(this);
+        }
+
+        /// <summary>
+        /// Stop animation at current position
+        /// </summary>
         public void Stop()
         {
             SafeTweenManager.Stop(this);
-        }
+        } 
 
         public void Update()
         {
-            time += Time.deltaTime;
+            if (isReverse)
+                time -= Time.deltaTime * speed;
+            else
+                time += Time.deltaTime * speed;
+
             foreach (var tweenProperty in tweenProperties)
                 if (tweenProperty.isPlaying)
                     tweenProperty.Update(time);
+
+            if (!isReverse && normalizedTime > 1)
+                OnForwardComplete();
+            if (isReverse && normalizedTime < 0)
+                OnBackwardComplete();
+        }
+
+        void OnForwardComplete()
+        {
+            if (OnForwardCompletedAction != null)
+                OnForwardCompletedAction();
+            Stop();
+        }
+
+        void OnBackwardComplete()
+        {
+            if (OnBackwardCompletedAction != null)
+                OnBackwardCompletedAction();
+            Stop();
+        }
+
+        public virtual Tweener OnForward(Action OnForwardAction)
+        {
+            this.OnForwardAction = OnForwardAction;
+            return this;
+        }
+
+        public virtual Tweener OnBackword(Action OnBackwardAction)
+        {
+            this.OnBackwardAction = OnBackwardAction;
+            return this;
+        }
+
+        public virtual Tweener OnForwardComplete(Action OnBackwardCompletedAction)
+        {
+            this.OnForwardCompletedAction = OnBackwardCompletedAction;
+            return this;
+        }
+
+        public virtual Tweener OnBackwardComplete(Action OnForwardCompletedAction)
+        {
+            this.OnBackwardCompletedAction = OnForwardCompletedAction;
+            return this;
         }
     }
 
-    public abstract class TweenPropertyBase
+    public abstract class TweenProperty
     {
         public Tweener tweener;
-        public float delay;
-        public float duration;
-        protected Action OnCompleteAction;
-
         public bool isPlaying;
+        public bool isReverse;
 
-        public abstract void Update(float time);
+        public float startTime;
+        public float endTime;
 
-        public virtual void OnComplete()
+        protected Action OnPlayCompleted;
+        protected Action OnReverseCompleted;
+
+        public void Play()
         {
-            if (OnCompleteAction != null)
-                OnCompleteAction();
+            isPlaying = true;
+            tweener.Play();
+        }
+
+        public void PlayReverse()
+        {
+            isPlaying = true;
+            tweener.Play();
+        }
+
+        public virtual void Update(float time)
+        {
+            if (time >= startTime && time <= endTime)
+                UpdateValue((time - startTime) / (endTime - startTime));
+
+            if (!isReverse && time > endTime)
+                OnPlayComplete();
+            if (isReverse && time < startTime)
+                OnReverseComplete();
+        }
+
+        public virtual void UpdateValue(float normalizedTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        void OnPlayComplete()
+        {
+            UpdateValue(1);
+
+            if (OnPlayCompleted != null)
+                OnPlayCompleted();
             isPlaying = false;
         }
 
-        public virtual TweenPropertyBase SetDelay(float delay)
+        void OnReverseComplete()
         {
-            this.delay = delay;
+            UpdateValue(0);
+
+            if (OnReverseCompleted != null)
+                OnReverseCompleted();
+            isPlaying = false;
+        }
+
+        public virtual TweenProperty OnReverseComplete(Action OnPlayReverseCompleteAction)
+        {
+            this.OnReverseCompleted = OnPlayReverseCompleteAction;
             return this;
         }
 
-        public virtual TweenPropertyBase SetCompleteAction(Action OnCompleteAction)
+        public virtual TweenProperty OnPlayComplete(Action OnPlayCompleteAction)
         {
-            this.OnCompleteAction = OnCompleteAction;
+            this.OnPlayCompleted = OnPlayCompleteAction;
             return this;
         }
     }
 
-    public class TweenImageFill:TweenPropertyBase
+    public class TweenImageFill : TweenProperty
     {
         Image image;
         public float start;
         public float end;
 
-        public TweenImageFill(Image image, float end, float duration)
+        public TweenImageFill(Image image, float start, float end, float startTime, float endTime)
         {
             this.image = image;
-            this.start = image.fillAmount;
+            this.start = start;
             this.end = end;
-            this.duration = duration;
+            this.startTime = startTime;
+            this.endTime = endTime;
         }
 
-        public override void Update(float time)
+        public override void UpdateValue(float time)
         {
-            if (time <= delay)
-                return;
-            
-            image.fillAmount = Mathf.Lerp(start, end, time - delay / duration);
-
-            if (time >= duration + delay)
-                OnComplete();
+            image.fillAmount = Mathf.Lerp(start, end, time);
         }
     }
 
-    public class TweenPositionRelative:TweenPropertyBase
+    public class TweenLocalPosition : TweenProperty
     {
-        RectTransform rectTransform;
+        Transform transform;
         public Vector3 start;
-        public Vector3 endRelative;
+        public Vector3 end;
 
-        public TweenPositionRelative(RectTransform rectTransform, Vector3 end, float duration)
+        public TweenLocalPosition(Transform transform, Vector3 start, Vector3 end, float startTime, float endTime)
         {
-            this.rectTransform = rectTransform;
-            this.start = rectTransform.localPosition;
-            this.endRelative = end;
-            this.duration = duration;
-            this.OnCompleteAction = OnCompleteAction;
+            this.transform = transform;
+            this.start = start;
+            this.end = end;
+            this.startTime = startTime;
+            this.endTime = endTime;
         }
 
-        public override void Update(float time)
+        public override void UpdateValue(float time)
         {
-            if (time <= delay)
-                return;
+            transform.localPosition = Vector3.Lerp(start, end, time);
+        }
+    }
 
-            rectTransform.localPosition = Vector3.Lerp(start, start + endRelative, time - delay / duration);
+    public class TweenPosition : TweenProperty
+    {
+        Transform transform;
+        public Vector3 start;
+        public Vector3 end;
 
-            if (time >= duration + delay)
-                OnComplete();
+        public TweenPosition(Transform transform, Vector3 start, Vector3 end, float startTime, float endTime)
+        {
+            this.transform = transform;
+            this.start = start;
+            this.end = end;
+            this.startTime = startTime;
+            this.endTime = endTime;
+        }
+
+        public override void UpdateValue(float time)
+        {
+            transform.position = Vector3.Lerp(start, end, time);
+        }
+    }
+
+    public class TweenAnchorPosition : TweenProperty
+    {
+        RectTransform rectTransform;
+        public Vector2 start;
+        public Vector2 end;
+
+        public TweenAnchorPosition(RectTransform rectTransform, Vector2 start, Vector2 end, float startTime, float endTime)
+        {
+            this.rectTransform = rectTransform;
+            this.start = start;
+            this.end = end;
+            this.startTime = startTime;
+            this.endTime = endTime;
+        }
+
+        public override void UpdateValue(float time)
+        {
+            rectTransform.anchoredPosition = Vector2.Lerp(start, end, time);
+        }
+    }
+
+    public class TweenSizeDelta : TweenProperty
+    {
+        RectTransform rectTransform;
+        public Vector2 start;
+        public Vector2 end;
+
+        public TweenSizeDelta(RectTransform rectTransform, Vector2 start, Vector2 end, float startTime, float endTime)
+        {
+            this.rectTransform = rectTransform;
+            this.start = start;
+            this.end = end;
+            this.startTime = startTime;
+            this.endTime = endTime;
+        }
+
+        public override void UpdateValue(float time)
+        {
+            rectTransform.sizeDelta = Vector2.Lerp(start, end, time);
         }
     }
 
     public static class ImageExtension
     {
-        public static TweenImageFill Fill(this Image image, float target, float duration)
+        public static TweenImageFill Fill(this Image image, float target, float duration, float delay = 0)
         {
             var tweener = new Tweener();
-            var tweenImageFill = new TweenImageFill(image, target, duration);
+            var tweenImageFill = new TweenImageFill(image, image.fillAmount, target, delay, duration + delay);
             tweener.Add(tweenImageFill);
-            SafeTweenManager.Instance.Add(image, tweener);
+            tweener.PlayForward();
             return tweenImageFill;
         }
     }
 
     public static class TransformExtension
     {
-        public static TweenPositionRelative MovePositionRelative(this RectTransform rectTransform, Vector3 target, float duration)
+        public static TweenLocalPosition MoveLocalPositionRelative(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
         {
             var tweener = new Tweener();
-            var tweenPositionRelative = new TweenPositionRelative(rectTransform, target, duration);
-            tweener.Add(tweenPositionRelative);
-            SafeTweenManager.Instance.Add(rectTransform, tweener);
-            return tweenPositionRelative;
+            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, rectTransform.localPosition + target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+
+        public static TweenLocalPosition MoveLocalPosition(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+
+        public static TweenLocalPosition MoveLocalPosition(this Transform transform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenLocalPosition(transform, transform.localPosition, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+
+        public static TweenPosition MovePosition(this Transform transform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenPosition(transform, transform.position, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+    }
+
+    public static class RectTransformExtension
+    {
+        public static TweenAnchorPosition MoveAnchorPosition(this RectTransform rectTransform, Vector2 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenAnchorPosition(rectTransform, rectTransform.anchoredPosition, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
         }
     }
 }
