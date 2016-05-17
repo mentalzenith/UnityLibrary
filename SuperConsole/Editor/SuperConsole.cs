@@ -22,16 +22,20 @@ namespace SuperConsole
         double doubleClickTime = 0.3;
 
         float logHeight = 10;
+        float count;
 
         void OnEnable()
         {
             messages = new List<LogMessage>();
+            UnityEngine.Debug.Log("hi");
             Application.logMessageReceived += OnLogMessageReceived;
-//            Application.logMessageReceived+=OnLogMessageReceived2;
             EditorApplication.playmodeStateChanged += OnPlayModeStateChanged;
             DrawFakeLog();
             content = new GUIContent();
-
+            titleContent = GetIconContent("icons/UnityEditor.ConsoleWindow.png", "SConsole");
+            //titleContent = new GUIContent();
+            //titleContent.image = EditorGUIUtility.Load("icons/UnityEditor.ConsoleWindow.png") as Texture2D;
+            
             LoadPreference();
         }
 
@@ -41,7 +45,7 @@ namespace SuperConsole
         }
 
         void LoadPreference()
-        {            
+        {
             collapse = EditorPrefs.GetBool("SC-collapse");
             clearOnPlay = EditorPrefs.GetBool("SC-clearOnPlay");
             pauseOnError = EditorPrefs.GetBool("SC-pauseOnError");
@@ -59,7 +63,7 @@ namespace SuperConsole
 
             EditorPrefs.SetBool("SC-showLog", showLog);
             EditorPrefs.SetBool("SC-showWarning", showWarning);
-            EditorPrefs.SetBool("SC-showError", showError);  
+            EditorPrefs.SetBool("SC-showError", showError);
         }
 
         void OnPlayModeStateChanged()
@@ -87,7 +91,9 @@ namespace SuperConsole
 
             if (GUILayout.Button("Fake Message", EditorStyles.toolbarButton))
                 DrawFakeLog();
-            
+
+            GUILayout.Label(count.ToString(), EditorStyles.toolbarButton);
+
             GUILayout.FlexibleSpace();
 
             showLog = GUILayout.Toggle(showLog, GetIconContent("icons/console.infoicon.sml.png", logCount.ToString()), EditorStyles.toolbarButton);
@@ -107,7 +113,7 @@ namespace SuperConsole
         void DrawFakeLog()
         {
             for (int i = 0; i < 20; i++)
-                messages.Add(new LogMessage{ message = "fake message " + i, stackTrace = "fake stackTrace\n fake stackTrace 2", logType = LogType.Log });
+                messages.Add(new LogMessage { message = "fake message " + i, stackTrace = "fake stackTrace\n fake stackTrace 2", logType = LogType.Log });
         }
 
         void DrawLog(LogMessage message)
@@ -115,10 +121,10 @@ namespace SuperConsole
             if (Filtered(message.logType))
                 return;
 
-            
-            GetIconContent(message.logType).text = message.message;
 
-//            var style = new GUIStyle(GUI.skin.box);
+            //GetIconContent(message.logType).text = message.message;
+            content.text = message.message;
+            
             var style = new GUIStyle(EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).textField);
             style.alignment = TextAnchor.MiddleLeft;
             style.richText = true;
@@ -132,8 +138,8 @@ namespace SuperConsole
             else
             {
                 GUI.backgroundColor = Color.white;
-            }            
-            
+            }
+
             if (GUILayout.Button(content, style, GUILayout.ExpandWidth(true)))
             {
                 if ((EditorApplication.timeSinceStartup - clickTime) < doubleClickTime)
@@ -167,6 +173,10 @@ namespace SuperConsole
                     if (showError)
                         return false;
                     break;
+                case LogType.Exception:
+                    if (showError)
+                        return false;
+                    break;
             }
             return true;
         }
@@ -196,34 +206,23 @@ namespace SuperConsole
         GUIContent GetIconContent(string path, string text)
         {
             Texture tex = EditorGUIUtility.Load(path) as Texture2D;
-
-            if (tex == null)
-            {
-                EditorGUILayout.LabelField("null:", GUILayout.Width(30));
-                EditorGUILayout.TextField(path);
-                return content;
-            }
-
+            
+            var content = new GUIContent();
             content.text = text;
             content.image = tex;
             return content;
         }
 
-        void OnLogMessageReceived2(string condition, string stackTrace, LogType logType)
-        {
-            UnityEngine.Debug.Log("call2");
-        }
-
         void OnLogMessageReceived(string condition, string stackTrace, LogType logType)
         {
-            UnityEngine.Debug.Log("call");
+            count++;
 
             var newMessage = new LogMessage();
             newMessage.message = condition;
             newMessage.stackTrace = stackTrace;
             newMessage.logType = logType;
             messages.Add(newMessage);
-            EditorUtility.SetDirty(EditorWindow.GetWindow(typeof(SuperConsole)));
+            EditorUtility.SetDirty(GetWindow(typeof(SuperConsole)));
 
             //update message count
             switch (logType)
@@ -237,12 +236,13 @@ namespace SuperConsole
                 case LogType.Error:
                     errorCount++;
                     break;
+                case LogType.Exception:
+                    errorCount++;
+                    break;
+                case LogType.Assert:
+                    errorCount++;
+                    break;
             }
-        }
-
-        void Update()
-        {
-            
         }
 
         public class LogMessage
@@ -253,9 +253,9 @@ namespace SuperConsole
         }
 
         [MenuItem("Window/SuperConsole")]
-        public static void  ShowWindow()
+        public static void ShowWindow()
         {
-            EditorWindow.GetWindow(typeof(SuperConsole));
+            GetWindow(typeof(SuperConsole));
         }
     }
 }
