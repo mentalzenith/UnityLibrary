@@ -15,7 +15,7 @@ namespace SuperConsole
         bool collapse, clearOnPlay, pauseOnError;
         bool showLog, showWarning, showError;
         int logCount, warningCount, errorCount;
-        Vector2 scrollPosition;
+        Vector2 stackViewScrollPosition, logViewScrollPosition;
         LogMessage selected;
 
         double clickTime;
@@ -24,17 +24,15 @@ namespace SuperConsole
         float logHeight = 10;
         float count;
 
+        string text;
+
         void OnEnable()
         {
             messages = new List<LogMessage>();
-            UnityEngine.Debug.Log("hi");
             Application.logMessageReceived += OnLogMessageReceived;
             EditorApplication.playmodeStateChanged += OnPlayModeStateChanged;
-            DrawFakeLog();
             content = new GUIContent();
             titleContent = GetIconContent("icons/UnityEditor.ConsoleWindow.png", "SConsole");
-            //titleContent = new GUIContent();
-            //titleContent.image = EditorGUIUtility.Load("icons/UnityEditor.ConsoleWindow.png") as Texture2D;
             
             LoadPreference();
         }
@@ -89,10 +87,7 @@ namespace SuperConsole
             clearOnPlay = GUILayout.Toggle(clearOnPlay, "Clear on Play", EditorStyles.toolbarButton);
             pauseOnError = GUILayout.Toggle(pauseOnError, "Error Pause", EditorStyles.toolbarButton);
 
-            if (GUILayout.Button("Fake Message", EditorStyles.toolbarButton))
-                DrawFakeLog();
-
-            GUILayout.Label(count.ToString(), EditorStyles.toolbarButton);
+            GUILayout.Label(text, EditorStyles.toolbarButton);
 
             GUILayout.FlexibleSpace();
 
@@ -102,7 +97,45 @@ namespace SuperConsole
             GUILayout.EndHorizontal();
 
             //content
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            EditorGUILayout.BeginHorizontal();
+            DrawStackView();
+            DrawLogView();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        void DrawStackView()
+        {
+            stackViewScrollPosition = EditorGUILayout.BeginScrollView(stackViewScrollPosition);
+
+            EditorGUILayout.EndScrollView();
+        }
+
+        private Vector2 scrollPos = Vector2.zero;
+        float currentScrollViewHeight;
+        bool resize = false;
+        Rect cursorChangeRect;
+
+        void ResizeScrollView()
+        {
+            GUI.DrawTexture(cursorChangeRect, EditorGUIUtility.whiteTexture);
+            EditorGUIUtility.AddCursorRect(cursorChangeRect, MouseCursor.ResizeVertical);
+
+            if (Event.current.type == EventType.mouseDown && cursorChangeRect.Contains(Event.current.mousePosition))
+            {
+                resize = true;
+            }
+            if (resize)
+            {
+                currentScrollViewHeight = Event.current.mousePosition.y;
+                cursorChangeRect.Set(cursorChangeRect.x, currentScrollViewHeight, cursorChangeRect.width, cursorChangeRect.height);
+            }
+            if (Event.current.type == EventType.MouseUp)
+                resize = false;        
+        }
+
+        void DrawLogView()
+        {
+            logViewScrollPosition = EditorGUILayout.BeginScrollView(logViewScrollPosition);
 
             foreach (var message in messages)
                 DrawLog(message);
@@ -110,21 +143,44 @@ namespace SuperConsole
             EditorGUILayout.EndScrollView();
         }
 
-        void DrawFakeLog()
-        {
-            for (int i = 0; i < 20; i++)
-                messages.Add(new LogMessage { message = "fake message " + i, stackTrace = "fake stackTrace\n fake stackTrace 2", logType = LogType.Log });
-        }
-
         void DrawLog(LogMessage message)
         {
             if (Filtered(message.logType))
                 return;
 
+            EditorGUILayout.BeginHorizontal();
+            DrawLogColorLabel(message);
+            DrawLogMessage(message);
 
+            EditorGUILayout.EndHorizontal();
+
+        }
+
+        void DrawLogColorLabel(LogMessage message)
+        {
+            switch (message.logType)
+            {
+                case LogType.Log:
+                    GUI.backgroundColor = Color.white;
+                    break;
+                case LogType.Warning:
+                    GUI.backgroundColor = Color.yellow;
+                    break;
+                case LogType.Error:
+                    GUI.backgroundColor = Color.red;
+                    break;
+                case LogType.Exception:
+                    GUI.backgroundColor = Color.red;
+                    break;
+            }
+            GUILayout.Label("", EditorStyles.helpBox, GUILayout.Width(10), GUILayout.Height(logHeight));
+        }
+
+        void DrawLogMessage(LogMessage message)
+        {
             //GetIconContent(message.logType).text = message.message;
             content.text = message.message;
-            
+
             var style = new GUIStyle(EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).textField);
             style.alignment = TextAnchor.MiddleLeft;
             style.richText = true;
@@ -153,7 +209,8 @@ namespace SuperConsole
         void OnDoubleClick()
         {
             int lineNumber = 0;
-            string fileName = selected.stackTrace;
+            string fileName = StackTraceExtractor.GetFirstPath(selected.stackTrace,out lineNumber);
+            text = fileName+" "+lineNumber;
             EditorTools.OpenScript(fileName, lineNumber);
         }
 

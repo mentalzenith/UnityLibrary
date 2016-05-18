@@ -13,3 +13,4 @@ Assets/Editor/ExecuteTest.cs
 Assets/Scripts/Test.cs
 Assets/Scripts/Test.cs.meta
 *.DS_Store
+*.meta
