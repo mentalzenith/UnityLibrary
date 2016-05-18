@@ -9,7 +9,7 @@ namespace SuperConsole
 {
     public class SuperConsole : EditorWindow
     {
-        public List<LogMessage> messages;
+        static List<LogMessage> messages;
 
         GUIContent content;
         bool collapse, clearOnPlay, pauseOnError;
@@ -28,9 +28,15 @@ namespace SuperConsole
 
         void OnEnable()
         {
-            messages = new List<LogMessage>();
+            if (messages == null)
+            {
+                logCount = 0;
+                warningCount = 0;
+                errorCount = 0;
+                messages = new List<LogMessage>();
+            }
             Application.logMessageReceived += OnLogMessageReceived;
-            EditorApplication.playmodeStateChanged += OnPlayModeStateChanged;
+
             content = new GUIContent();
             titleContent = GetIconContent("icons/UnityEditor.ConsoleWindow.png", "SConsole");
             
@@ -64,18 +70,9 @@ namespace SuperConsole
             EditorPrefs.SetBool("SC-showError", showError);
         }
 
-        void OnPlayModeStateChanged()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                //enter playmode
-                if (clearOnPlay)
-                    Clear();
-            }
-        }
-
         void OnGUI()
         {
+            text = messages.Count.ToString();
             //Header
             GUILayout.BeginHorizontal(EditorStyles.toolbarButton);
             if (GUILayout.Button("Clear", EditorStyles.toolbarButton))
@@ -87,6 +84,10 @@ namespace SuperConsole
             clearOnPlay = GUILayout.Toggle(clearOnPlay, "Clear on Play", EditorStyles.toolbarButton);
             pauseOnError = GUILayout.Toggle(pauseOnError, "Error Pause", EditorStyles.toolbarButton);
 
+            if (EditorApplication.isCompiling)
+                GUILayout.Label("Compiling", EditorStyles.toolbarButton);
+            else if (EditorApplication.isPlaying)
+                GUILayout.Label("Playing", EditorStyles.toolbarButton);
             GUILayout.Label(text, EditorStyles.toolbarButton);
 
             GUILayout.FlexibleSpace();
@@ -209,8 +210,8 @@ namespace SuperConsole
         void OnDoubleClick()
         {
             int lineNumber = 0;
-            string fileName = StackTraceExtractor.GetFirstPath(selected.stackTrace,out lineNumber);
-            text = fileName+" "+lineNumber;
+            string fileName = StackTraceExtractor.GetFirstPath(selected.stackTrace, out lineNumber);
+            text = fileName + " " + lineNumber;
             EditorTools.OpenScript(fileName, lineNumber);
         }
 
