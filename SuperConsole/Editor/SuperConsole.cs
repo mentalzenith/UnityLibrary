@@ -9,22 +9,41 @@ namespace SuperConsole
 {
     public class SuperConsole : EditorWindow
     {
-        static List<LogMessage> messages;
+        //system
+        List<LogMessage> messages;
 
         GUIContent content;
+
+        //title bar
         bool collapse, clearOnPlay, pauseOnError;
         bool showLog, showWarning, showError;
         int logCount, warningCount, errorCount;
-        Vector2 stackViewScrollPosition, logViewScrollPosition;
-        LogMessage selected;
+        bool compiling;
 
+        //input
         double clickTime;
         double doubleClickTime = 0.3;
 
-        float logHeight = 10;
-        float count;
+        //debug
+        string text, text2;
 
-        string text;
+        //content
+        Vector2 contentSize;
+
+        //stack view
+        Vector2 stackViewScrollPosition;
+
+        //split bar
+        float splitBarWidth = 5;
+        float stackViewWidth;
+        bool resize = false;
+        Rect splitBarRect;
+
+        //log view
+        Vector2 logViewScrollPosition;
+        LogMessage selected;
+        float logHeight = 10;
+        int lastLogFrameCount;
 
         void OnEnable()
         {
@@ -39,6 +58,11 @@ namespace SuperConsole
 
             content = new GUIContent();
             titleContent = GetIconContent("icons/UnityEditor.ConsoleWindow.png", "SConsole");
+
+            stackViewWidth = position.width / 2;
+            splitBarRect = new Rect(stackViewWidth, position.y, 5, position.height);
+
+            lastLogFrameCount = -1;
             
             LoadPreference();
         }
@@ -72,7 +96,6 @@ namespace SuperConsole
 
         void OnGUI()
         {
-            text = messages.Count.ToString();
             //Header
             GUILayout.BeginHorizontal(EditorStyles.toolbarButton);
             if (GUILayout.Button("Clear", EditorStyles.toolbarButton))
@@ -81,14 +104,14 @@ namespace SuperConsole
             GUILayout.Space(5);
 
             collapse = GUILayout.Toggle(collapse, "Collapse", EditorStyles.toolbarButton);
-            clearOnPlay = GUILayout.Toggle(clearOnPlay, "Clear on Play", EditorStyles.toolbarButton);
-            pauseOnError = GUILayout.Toggle(pauseOnError, "Error Pause", EditorStyles.toolbarButton);
 
-            if (EditorApplication.isCompiling)
-                GUILayout.Label("Compiling", EditorStyles.toolbarButton);
-            else if (EditorApplication.isPlaying)
-                GUILayout.Label("Playing", EditorStyles.toolbarButton);
+            //broken
+            //clearOnPlay = GUILayout.Toggle(clearOnPlay, "Clear on Play", EditorStyles.toolbarButton);
+            pauseOnError = GUILayout.Toggle(pauseOnError, "Error Pause", EditorStyles.toolbarButton);
+            DrawStatus();
+
             GUILayout.Label(text, EditorStyles.toolbarButton);
+            GUILayout.Label(text2, EditorStyles.toolbarButton);
 
             GUILayout.FlexibleSpace();
 
@@ -98,40 +121,102 @@ namespace SuperConsole
             GUILayout.EndHorizontal();
 
             //content
-            EditorGUILayout.BeginHorizontal();
+            var contentRect = EditorGUILayout.BeginHorizontal();
+            if (contentRect.size != Vector2.zero)
+                contentSize = contentRect.size;
+
             DrawStackView();
+            ResizeScrollView(contentRect);
+            GUILayout.Space(splitBarWidth);
             DrawLogView();
             EditorGUILayout.EndHorizontal();
         }
 
+        void DrawStatus()
+        {               
+            if (EditorApplication.isCompiling)
+            {
+                GUILayout.Label("Compiling", EditorStyles.toolbarButton);
+
+            }
+            else if (compiling)
+                CompilingCompleted();
+            
+            if (EditorApplication.isPlaying)
+                GUILayout.Label("Playing", EditorStyles.toolbarButton);
+        }
+
+        void CompilingCompleted()
+        {
+            compiling = false;
+            Clear();
+        }
+
         void DrawStackView()
         {
-            stackViewScrollPosition = EditorGUILayout.BeginScrollView(stackViewScrollPosition);
+            stackViewScrollPosition = EditorGUILayout.BeginScrollView(stackViewScrollPosition, GUILayout.Width(stackViewWidth));
+
+            if (selected == null)
+            {
+                var style = EditorStyles.helpBox;
+                style.normal.textColor = Color.black;
+                GUILayout.Label("Select a log to show stack trace", style);
+                EditorGUILayout.EndScrollView();
+                return;
+            }
+            
+            var items = StackTraceExtractor.ExtractStackTraceItems(selected.stackTrace);
+
+            foreach (var item in items)
+                DrawStackTraceItem(item);
 
             EditorGUILayout.EndScrollView();
         }
 
-        private Vector2 scrollPos = Vector2.zero;
-        float currentScrollViewHeight;
-        bool resize = false;
-        Rect cursorChangeRect;
-
-        void ResizeScrollView()
+        void DrawStackTraceItem(StackTraceItem item)
         {
-            GUI.DrawTexture(cursorChangeRect, EditorGUIUtility.whiteTexture);
-            EditorGUIUtility.AddCursorRect(cursorChangeRect, MouseCursor.ResizeVertical);
+            var style = EditorStyles.helpBox;
+            style.alignment = TextAnchor.MiddleLeft;
+            style.richText = true;
+            style.normal.textColor = Color.black;
 
-            if (Event.current.type == EventType.mouseDown && cursorChangeRect.Contains(Event.current.mousePosition))
+            content.text = item.methodName + " " + item.fileName + ":" + item.lineNumber;
+
+            if (GUILayout.Button(content, style, GUILayout.ExpandWidth(true)))
             {
-                resize = true;
+                if ((EditorApplication.timeSinceStartup - clickTime) < doubleClickTime)
+                    OnStackDoubleClick(item);
+                clickTime = EditorApplication.timeSinceStartup;
             }
+        }
+
+        void OnStackDoubleClick(StackTraceItem item)
+        {
+            EditorTools.OpenScript(item.path, item.lineNumber);
+        }
+
+        void ResizeScrollView(Rect contentRect)
+        {
+            splitBarRect.Set(stackViewWidth, contentRect.y, splitBarWidth, contentRect.height);
+            GUI.DrawTexture(splitBarRect, EditorGUIUtility.whiteTexture);
+            EditorGUIUtility.AddCursorRect(splitBarRect, MouseCursor.ResizeHorizontal);
+
+            //Mouse Down
+            if (Event.current.type == EventType.mouseDown && splitBarRect.Contains(Event.current.mousePosition))
+                resize = true;
+            
             if (resize)
             {
-                currentScrollViewHeight = Event.current.mousePosition.y;
-                cursorChangeRect.Set(cursorChangeRect.x, currentScrollViewHeight, cursorChangeRect.width, cursorChangeRect.height);
+                stackViewWidth = Event.current.mousePosition.x;
+
+                stackViewWidth = Mathf.Clamp(stackViewWidth, 0, contentSize.x - splitBarWidth);
+                splitBarRect.Set(stackViewWidth, splitBarRect.y, splitBarRect.width, splitBarRect.height);
+                Repaint();
             }
+
+            //Mouse Up
             if (Event.current.type == EventType.MouseUp)
-                resize = false;        
+                resize = false;
         }
 
         void DrawLogView()
@@ -151,6 +236,7 @@ namespace SuperConsole
 
             EditorGUILayout.BeginHorizontal();
             DrawLogColorLabel(message);
+            DrawLogFrameCount(message);
             DrawLogMessage(message);
 
             EditorGUILayout.EndHorizontal();
@@ -174,7 +260,23 @@ namespace SuperConsole
                     GUI.backgroundColor = Color.red;
                     break;
             }
-            GUILayout.Label("", EditorStyles.helpBox, GUILayout.Width(10), GUILayout.Height(logHeight));
+            GUILayout.Label("", EditorStyles.helpBox, GUILayout.Width(10));
+        }
+
+        void DrawLogFrameCount(LogMessage message)
+        {
+            var style = EditorStyles.helpBox;
+            style.normal.textColor = Color.black;
+            style.alignment = TextAnchor.MiddleLeft;
+            style.richText = true;
+
+            int frameCount = message.frameCount;
+            if (frameCount == lastLogFrameCount)
+                GUI.backgroundColor = Color.green;
+            else
+                GUI.backgroundColor = Color.white;
+
+            GUILayout.Label((frameCount % 1000).ToString(), style, GUILayout.Width(30));
         }
 
         void DrawLogMessage(LogMessage message)
@@ -182,7 +284,8 @@ namespace SuperConsole
             //GetIconContent(message.logType).text = message.message;
             content.text = message.message;
 
-            var style = new GUIStyle(EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).textField);
+            //var style = new GUIStyle(EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).textField);
+            var style = EditorStyles.helpBox;
             style.alignment = TextAnchor.MiddleLeft;
             style.richText = true;
 
@@ -195,19 +298,20 @@ namespace SuperConsole
             else
             {
                 GUI.backgroundColor = Color.white;
+                style.normal.textColor = Color.black;
             }
 
             if (GUILayout.Button(content, style, GUILayout.ExpandWidth(true)))
             {
                 if ((EditorApplication.timeSinceStartup - clickTime) < doubleClickTime)
-                    OnDoubleClick();
+                    OnLogDoubleClick();
                 else
                     selected = message;
                 clickTime = EditorApplication.timeSinceStartup;
             }
         }
 
-        void OnDoubleClick()
+        void OnLogDoubleClick()
         {
             int lineNumber = 0;
             string fileName = StackTraceExtractor.GetFirstPath(selected.stackTrace, out lineNumber);
@@ -273,14 +377,15 @@ namespace SuperConsole
 
         void OnLogMessageReceived(string condition, string stackTrace, LogType logType)
         {
-            count++;
+            lastLogFrameCount = Time.frameCount;
 
             var newMessage = new LogMessage();
+            newMessage.frameCount = Time.frameCount;
             newMessage.message = condition;
             newMessage.stackTrace = stackTrace;
             newMessage.logType = logType;
             messages.Add(newMessage);
-            EditorUtility.SetDirty(GetWindow(typeof(SuperConsole)));
+            Repaint();
 
             //update message count
             switch (logType)
@@ -305,6 +410,7 @@ namespace SuperConsole
 
         public class LogMessage
         {
+            public int frameCount;
             public string message;
             public string stackTrace;
             public LogType logType;

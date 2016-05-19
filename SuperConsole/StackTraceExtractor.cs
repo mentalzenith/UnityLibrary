@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace SuperConsole
 {
@@ -18,17 +19,15 @@ namespace SuperConsole
                 return null;
         }
 
-        public static string GetFirstFileName(string stackTrace, out int lineNumber)
+        public static string GetFirstFileName(string path)
         {
-            string filter = @"(\w+).cs:(\d+)";
+            string filter = @"(\w+.cs)";
 
             Regex regex = new Regex(filter);
-            Match match = regex.Match(stackTrace);
-            lineNumber = 0;
+            Match match = regex.Match(path);
             if (match.Success)
             {
-                lineNumber = int.Parse(match.Groups[2].Value);
-                return match.Groups[1].Value;
+                return match.Value;
             }
             else
                 return null;
@@ -55,5 +54,32 @@ namespace SuperConsole
             int index = s.IndexOf("\n") + 1;
             return s.Substring(index);
         }
+
+        public static List<StackTraceItem> ExtractStackTraceItems(string stackTrace)
+        {
+            var list = new List<StackTraceItem>();
+            string filter = @"(.*)\ \(at (.+):(\d+)";
+
+            Regex regex = new Regex(filter);
+            var matches = regex.Matches(stackTrace);
+            foreach (Match match in matches)
+            {
+                var item = new StackTraceItem();
+                item.methodName = match.Groups[1].Value;
+                item.path = match.Groups[2].Value;
+                item.lineNumber = int.Parse(match.Groups[3].Value);
+                item.fileName = GetFirstFileName(item.path);
+                list.Add(item);
+            }
+            return list;
+        }
+    }
+
+    public class StackTraceItem
+    {
+        public string methodName;
+        public string fileName;
+        public string path;
+        public int lineNumber;
     }
 }
