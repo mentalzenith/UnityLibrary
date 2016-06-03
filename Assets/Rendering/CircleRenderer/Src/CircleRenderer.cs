@@ -13,8 +13,8 @@ public class CircleRenderer: MonoBehaviour
 
     //Mesh
     Vector3[] vertices;
-    Vector2[] uvs;
-    Vector2[] uv2s;
+    Vector2[] uv;
+    Vector2[] uv2;
     int[] triangles;
     int verticesIndex;
     float thickness;
@@ -71,8 +71,8 @@ public class CircleRenderer: MonoBehaviour
         int segment = tangentIntersect.Length;
         vertices = new Vector3[segment * 6];
         triangles = new int[segment * 6];
-        uvs = new Vector2[segment * 6];
-        uv2s = new Vector2[segment * 6];
+        uv = new Vector2[segment * 6];
+        uv2 = new Vector2[segment * 6];
         verticesIndex = 0;
 
         for (int i = 0; i < segment; i++)
@@ -84,8 +84,8 @@ public class CircleRenderer: MonoBehaviour
 
         var mesh = new Mesh();
         mesh.vertices = vertices;
-        mesh.uv = uvs;
-        mesh.uv2 = uv2s;
+        mesh.uv = uv;
+        mesh.uv2 = uv2;
         mesh.triangles = triangles;
 
         var filter = GetComponent<MeshFilter>();
@@ -97,13 +97,13 @@ public class CircleRenderer: MonoBehaviour
 
     void PushTriangle(Vector2 p1, Vector2 p2, Vector2 p3)
     {
-        uvs[verticesIndex] = ConvertToUV(p1);
-        uvs[verticesIndex + 1] = ConvertToUV(p2);
-        uvs[verticesIndex + 2] = ConvertToUV(p3);
+        uv[verticesIndex] = ConvertToUV(p1);
+        uv[verticesIndex + 1] = ConvertToUV(p2);
+        uv[verticesIndex + 2] = ConvertToUV(p3);
 
-        uv2s[verticesIndex] = new Vector2(thickness / radius/2, 0);
-        uv2s[verticesIndex + 1] = new Vector2(thickness / radius/2, 0);
-        uv2s[verticesIndex + 2] = new Vector2(thickness / radius/2, 0);
+        uv2[verticesIndex] = new Vector2(thickness / radius/2, 0);
+        uv2[verticesIndex + 1] = new Vector2(thickness / radius/2, 0);
+        uv2[verticesIndex + 2] = new Vector2(thickness / radius/2, 0);
 
         triangles[verticesIndex] = verticesIndex;
         triangles[verticesIndex + 1] = verticesIndex + 1;

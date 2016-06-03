@@ -45,7 +45,8 @@ public abstract class SingletonMonoManager<T>:MonoBehaviour where T:MonoBehaviou
     public static T CreateManager()
     {
         var go = new GameObject("[" + typeof(T).ToString() + "]");
-        return go.AddComponent<T>();
+        _instance = go.AddComponent<T>();
+        return _instance;
     }
 }
 

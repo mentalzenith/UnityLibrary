@@ -6,13 +6,14 @@ public class AdvanceTrailNode : MonoBehaviour
     public int maxPoint = 10;
 
     public Mode mode;
-    public float pointTimeInterval;
+    public float pointTimeInterval = 0.1f;
     public float pointDistanceInterval;
     public float width;
     public Color color;
 
-    public AdvanceTrailPoint lastPoint{get;private set;}
-    AdvanceTrailRenderer manager;
+    public AdvanceTrailPoint lastPoint{ get; private set; }
+
+    AdvanceTrailManager manager;
     AdvanceTrailPoint[] points;
     int index;
 
@@ -22,8 +23,9 @@ public class AdvanceTrailNode : MonoBehaviour
     {
         points = new AdvanceTrailPoint[maxPoint];
         for (int i = 0; i < maxPoint; i++)
-            points[i] = new AdvanceTrailPoint();
-        AdvanceTrailRenderer.Register(this);
+            points[i] = new AdvanceTrailPoint(this);
+        lastPoint = points[0];
+        AdvanceTrailManager.Register(this);
     }
 
     void Update()
@@ -69,7 +71,7 @@ public class AdvanceTrailNode : MonoBehaviour
         point.lastPoint = lastPoint;
         lastPoint = point;
 
-        AdvanceTrailRenderer.UpdatePoint(this);
+        AdvanceTrailManager.UpdatePoint(this);
     }
 
     public enum Mode
@@ -84,6 +86,22 @@ public class AdvanceTrailPoint
     public Vector3 position;
     public float width;
     public Color color;
+    public float life;
+
+    //internal
+    public AdvanceTrailNode node;
+    public AdvanceTrailRenderer batch;
+    public int index;
 
     public AdvanceTrailPoint lastPoint;
+
+    public AdvanceTrailPoint(AdvanceTrailNode node)
+    {
+        this.node = node;
+    }
+
+    public void UpdateNormal(Vector3 nextPoint)
+    {
+        
+    }
 }

@@ -2,78 +2,151 @@
 using System.Collections;
 using System.Collections.Generic;
 
-public class AdvanceTrailRenderer : SingletonMonoManager<AdvanceTrailRenderer>
+public class AdvanceTrailRenderer : MonoBehaviour
 {
-    public int maxPointPerBatch;
-    public int batches;
+    MeshRenderer meshRenderer;
+    MeshFilter meshFilter;
 
-    List<AdvanceTrailNode> nodes;
-    List<AdvanceTrailNode> updatedNodes;
-    Mesh[] meshes;
-    int meshIndex;
-
-
+    Mesh mesh;
     Vector3[] vertices;
+    Vector3[] tangent;
     int[] triangles;
     Vector2[] uv;
+    int verticesIndex;
+
+    int maxPointPerBatch;
+    float life;
+
+    List<int> newPoints;
+
+    bool isDirty;
 
     void Awake()
     {
-        Init();
+        meshRenderer = gameObject.AddComponent<MeshRenderer>();
+        meshFilter = gameObject.AddComponent<MeshFilter>();
     }
 
-    public void Init()
+    void Update()
     {
-        meshes = new Mesh[batches];
-        meshIndex = 0;
-
-        nodes = new List<AdvanceTrailNode>();
-        updatedNodes = new List<AdvanceTrailNode>();
+        life -= Time.deltaTime;
     }
 
-    public static void CreateRenderer()
+    public void Init(int maxPointPerBatch, Material material)
     {
-        var go = new GameObject("[AdvanceTrailRenderer]");
-        go.AddComponent<AdvanceTrailRenderer>();
-    }
-
-    void RegisterInternal(AdvanceTrailNode node)
-    {
-        nodes.Add(node);
-    }
-
-    void UpdatePointInternal(AdvanceTrailNode node)
-    {
-        updatedNodes.Add(node);
-    }
-
-    void LateUpdate()
-    {
-        foreach (var node in updatedNodes)
-            BuildPoint(node.lastPoint);
-    }
-
-    void BuildPoint(AdvanceTrailPoint point)
-    {
-
-    }
-
-    void ChangeBatch()
-    {
-        meshIndex = meshIndex + 1 < batches ? meshIndex + 1 : 0;
+        this.maxPointPerBatch = maxPointPerBatch;
         vertices = new Vector3[maxPointPerBatch * 6];
+        tangent = new Vector3[maxPointPerBatch * 6];
         triangles = new int[maxPointPerBatch * 6];
+        uv = new Vector2[maxPointPerBatch * 6];
+        verticesIndex = 0;
 
+        mesh = new Mesh();
+        meshFilter.mesh = mesh;
+        meshRenderer.sharedMaterial = material;
     }
 
-    //static shortcut method
-    public static void Register(AdvanceTrailNode node)
+    public void ResetMeshData()
     {
-        Instance.RegisterInternal(node);
+        for (int i = 0; i < maxPointPerBatch * 6; i++)
+        {
+            vertices[i] = Vector3.zero;
+            triangles[i] = 0;
+            uv[i] = Vector2.zero;
+        }
+        verticesIndex = 0;
     }
 
-    public static void UpdatePoint(AdvanceTrailNode node)
+    public void BuildPoint(AdvanceTrailPoint point)
     {
-        Instance.UpdatePointInternal(node);
+        if (point.lastPoint == null)
+            return;
+
+        isDirty = true;
+
+        if (life < point.life)
+            life = point.life;
+
+        point.batch = this;
+        point.index = verticesIndex;
+
+
+        var pLast = point.lastPoint.position;
+        var pNew = point.position;
+
+        var avgTangent = UpdateLastPoint(point);
+        var newTangent = pNew - pLast;
+
+        Vector3 offset = Vector3.zero;
+            
+        uv[verticesIndex] = new Vector2(0, 0);
+        uv[verticesIndex + 1] = new Vector2(0, 1);
+        uv[verticesIndex + 2] = new Vector2(1, 0);
+
+        triangles[verticesIndex] = verticesIndex;
+        triangles[verticesIndex + 1] = verticesIndex + 1;
+        triangles[verticesIndex + 2] = verticesIndex + 2;
+
+        tangent[verticesIndex] = avgTangent;
+        tangent[verticesIndex + 1] = newTangent;
+        tangent[verticesIndex + 2] = avgTangent;
+
+        vertices[verticesIndex++] = pLast - offset;
+        vertices[verticesIndex++] = pNew - offset;
+        vertices[verticesIndex++] = pLast + offset;
+
+
+        uv[verticesIndex] = new Vector2(1, 0);
+        uv[verticesIndex + 1] = new Vector2(0, 1);
+        uv[verticesIndex + 2] = new Vector2(1, 1);
+
+        triangles[verticesIndex] = verticesIndex;
+        triangles[verticesIndex + 1] = verticesIndex + 1;
+        triangles[verticesIndex + 2] = verticesIndex + 2;
+
+        tangent[verticesIndex] = avgTangent;
+        tangent[verticesIndex + 1] = newTangent;
+        tangent[verticesIndex + 2] = newTangent;
+
+        vertices[verticesIndex++] = pLast + offset;
+        vertices[verticesIndex++] = pNew - offset;
+        vertices[verticesIndex++] = pNew - offset;
+    }
+
+    Vector3 UpdateLastPoint(AdvanceTrailPoint point)
+    {
+        var lastPoint = point.lastPoint;        
+        return point.batch.UpdateLastPoint(point.index, point.position);
+    }
+
+    public Vector3 UpdateLastPoint(int index, Vector3 nextPoint)
+    {
+        var newTangent = (tangent[index] + (nextPoint - vertices[index])).normalized;
+
+        tangent[index + 1] = newTangent;
+        tangent[index + 4] = newTangent;
+        tangent[index + 5] = newTangent;
+
+        return newTangent;
+    }
+
+    public bool IsFull
+    {
+        get
+        {
+            return verticesIndex / 6 >= maxPointPerBatch;
+        }
+    }
+
+    public void UpdateMesh()
+    {
+        if (!isDirty)
+            return;
+        
+        mesh.vertices = vertices;
+        mesh.uv = uv;
+        mesh.triangles = triangles;
+
+        isDirty = false;
     }
 }
