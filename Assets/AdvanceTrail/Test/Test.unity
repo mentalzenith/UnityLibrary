@@ -242,8 +242,8 @@ Camera:
   m_GameObject: {fileID: 1460578921}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0.019607844}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.11764705, g: 0.11764705, b: 0.11764705, a: 0.019607844}
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
@@ -309,16 +309,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trackingMode: 2
   cameraDistance: 50
+  useUnityTrailRenderer: 1
   life: 5
   width: 2
-  pointTimeInterval: 0.5
+  pointTimeInterval: 0.1
   pointDistanceInterval: 0
   color: {r: 1, g: 1, b: 1, a: 0.441}
   randomColor: 1
-  boidNumber: 1
+  boidNumber: 100
+  targetOffset: 10
   minSpeed: 0.5
   minSpeedVariation: 0.2
-  maxSpeed: 2
+  maxSpeed: 5
   maxSpeedVariation: 0.5
   turnSpeed: 300
   turnSpeedVariation: 0.5

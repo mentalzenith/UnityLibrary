@@ -71,7 +71,7 @@ public class AdvanceTrailRenderer : MonoBehaviour
         isDirty = true;
 
         if (life < point.life)
-            life = point.life;
+            life = point.life + 0.1f;
 
         point.batch = this;
         point.index = verticesIndex;
@@ -83,7 +83,6 @@ public class AdvanceTrailRenderer : MonoBehaviour
         var avgTangent = UpdateLastPoint(point);
         var newTangent = pNew - pLast;
 
-        var offset = Vector3.zero;
         var data = new Vector4(point.width, point.life, Time.time, 0);
 
         var lastColor = point.lastPoint.color;
@@ -106,13 +105,13 @@ public class AdvanceTrailRenderer : MonoBehaviour
         triangles[verticesIndex + 1] = verticesIndex + 1;
         triangles[verticesIndex + 2] = verticesIndex + 2;
 
-        tangents[verticesIndex] = avgTangent;
+        tangents[verticesIndex] = avgTangent * 2;
         tangents[verticesIndex + 1] = newTangent;
-        tangents[verticesIndex + 2] = avgTangent;
+        tangents[verticesIndex + 2] = avgTangent * 2;
 
-        vertices[verticesIndex++] = pLast - offset;
-        vertices[verticesIndex++] = pNew - offset;
-        vertices[verticesIndex++] = pLast + offset;
+        vertices[verticesIndex++] = pLast;
+        vertices[verticesIndex++] = pNew;
+        vertices[verticesIndex++] = pLast;
 
         //second triangle
 
@@ -132,22 +131,20 @@ public class AdvanceTrailRenderer : MonoBehaviour
         triangles[verticesIndex + 1] = verticesIndex + 1;
         triangles[verticesIndex + 2] = verticesIndex + 2;
 
-        tangents[verticesIndex] = avgTangent;
+        tangents[verticesIndex] = avgTangent * 2;
         tangents[verticesIndex + 1] = newTangent;
         tangents[verticesIndex + 2] = newTangent;
 
-        vertices[verticesIndex++] = pLast + offset;
-        vertices[verticesIndex++] = pNew - offset;
-        vertices[verticesIndex++] = pNew - offset;
-
-//        print(lastColor+" "+point.color);
+        vertices[verticesIndex++] = pLast;
+        vertices[verticesIndex++] = pNew;
+        vertices[verticesIndex++] = pNew;
     }
 
     public void UpdatePoint(AdvanceTrailPoint point)
     {
         if (point.lastPoint == null)
             return;
-        
+
         isDirty = true;
 
         var index = point.index;
@@ -163,11 +160,7 @@ public class AdvanceTrailRenderer : MonoBehaviour
         uv2[index + 4] = data;
         uv2[index + 5] = data;
 
-        colors[index] = lastColor;
         colors[index + 1] = point.color;
-        colors[index + 2] = lastColor;
-
-        colors[index + 3] = lastColor;
         colors[index + 4] = point.color;
         colors[index + 5] = point.color;
 
@@ -187,17 +180,15 @@ public class AdvanceTrailRenderer : MonoBehaviour
         if (lastPoint.batch == null)
             return Vector3.zero;
 
-        var lastLastPoint = lastPoint.lastPoint; 
-        if (lastLastPoint == null)
-            return lastPoint.batch.UpdateLastPoint(lastPoint.index, lastPoint.position, point.position);
-        else
-            return lastPoint.batch.UpdateLastPoint(lastPoint.index, lastLastPoint.position, point.position);
+        var lastLastPoint = lastPoint.lastPoint;
+        return lastPoint.batch.UpdateLastPoint(lastPoint.index, lastLastPoint.position, point.position);
     }
 
     Vector3 UpdateLastPoint(int index, Vector3 lastPoint, Vector3 nextPoint)
     {
-//        var newTangent = (tangent[index] + (nextPoint - vertices[index])).normalized;
         var newTangent = (nextPoint - lastPoint).normalized;
+
+        isDirty = true;
 
         tangents[index + 1] = newTangent;
         tangents[index + 4] = newTangent;
@@ -234,6 +225,9 @@ public class AdvanceTrailRenderer : MonoBehaviour
 
     public bool IsExpired
     {
-        get{ return life <= 0; }
+        get
+        {            
+            return life < 0;
+        }
     }
 }

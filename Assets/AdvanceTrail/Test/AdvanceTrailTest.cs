@@ -9,6 +9,7 @@ public class AdvanceTrailTest : MonoBehaviour
     public float cameraDistance;
 
     [Header("Trail")]
+    public bool useUnityTrailRenderer = false;
     public float life = 1;
     public float width = 1;
     public float pointTimeInterval = 0.1f;
@@ -19,6 +20,7 @@ public class AdvanceTrailTest : MonoBehaviour
     [Header("Boids")]
     [Range(0, 100)]
     public int boidNumber = 10;
+    public float targetOffset = 1;
 
     public float minSpeed = 0.5f;
     public float minSpeedVariation = 0.2f;
@@ -67,6 +69,8 @@ public class AdvanceTrailTest : MonoBehaviour
         
         AdjustBoids();
         UpdateTrailSettings();
+        UpdateBoidSettings();
+        ChangeTrail();
         isDirty = false;
     }
 
@@ -113,6 +117,7 @@ public class AdvanceTrailTest : MonoBehaviour
         boid.target = target;
         
         boid.SetNode(boid.gameObject.AddComponent<AdvanceTrailNode>());
+        
         boids.Add(boid);
         return boid;
     }
@@ -132,6 +137,20 @@ public class AdvanceTrailTest : MonoBehaviour
     {
         foreach (var boid in boids)
             boid.ChangeTrailColor(color);
+    }
+
+    void UpdateBoidSettings()
+    {
+        foreach (var boid in boids)
+            boid.targetOffset = new Vector3(Random.Range(-targetOffset, targetOffset), Random.Range(-targetOffset, targetOffset), Random.Range(-targetOffset, targetOffset));
+    }
+
+    void ChangeTrail()
+    {
+        foreach (var boid in boids)
+        {
+            boid.UseUnityTrail(useUnityTrailRenderer);
+        }
     }
 
     public enum TrackingMode

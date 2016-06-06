@@ -4,12 +4,19 @@ using System.Collections;
 public class Boid : MonoBehaviour
 {
     public GameObject target;
+    public Vector3 targetOffset;
     public float turnSpeed = 10;
     public float minSpeed = 1;
     public float maxSpeed = 3;
 
     public float arrivalDistance = 1;
     AdvanceTrailNode node;
+    TrailRenderer trailRenderer;
+
+    void Start()
+    {
+        trailRenderer = gameObject.AddComponent<TrailRenderer>();
+    }
 
     public  void SetNode(AdvanceTrailNode node)
     {
@@ -18,10 +25,11 @@ public class Boid : MonoBehaviour
 
     void Update()
     {
-        var targetRotation = Quaternion.LookRotation(target.transform.position - transform.position);
+        var targetPosition = target.transform.position + targetOffset;
+        var targetRotation = Quaternion.LookRotation(targetPosition - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 1 * Time.deltaTime);
 
-        var distanceSqr = Vector2.SqrMagnitude(target.transform.position - transform.position);
+        var distanceSqr = Vector2.SqrMagnitude(targetPosition - transform.position);
         transform.position += transform.forward * Mathf.Lerp(minSpeed, maxSpeed, distanceSqr / (arrivalDistance * arrivalDistance));
     }
 
@@ -37,5 +45,17 @@ public class Boid : MonoBehaviour
     public void ChangeTrailColor(Color color)
     {
         node.color = color;
+    }
+
+    public void ChangeTargetOffset(Vector3 targetOffset)
+    {
+        this.targetOffset = targetOffset;
+    }
+
+    public void UseUnityTrail(bool isOn)
+    {
+        node.enabled = !isOn;
+        if (trailRenderer != null)
+            trailRenderer.enabled = isOn;
     }
 }

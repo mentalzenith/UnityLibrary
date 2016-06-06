@@ -12,8 +12,10 @@
 		Pass
 		{
 			Cull back
-			Blend SrcAlpha OneMinusSrcAlpha
-			ZWrite on
+			//Blend SrcAlpha OneMinusSrcAlpha
+//			Blend One One
+Blend One zero
+			ZWrite off
 
 
 			CGPROGRAM

@@ -55,6 +55,7 @@ public class AdvanceTrailNode : MonoBehaviour
         else
         {
             timeIntervalLeft = pointTimeInterval;
+//            UpdateOldPoint();
             UpdateNewPoint();
         }
     }
