@@ -5,14 +5,16 @@ using System.Collections.Generic;
 public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
 {
     public int maxPointPerBatch = 300;
-    public int batches = 3;
+    public int batches = 5;
 
     AdvanceTrailRenderer[] renderers;
+    Queue<AdvanceTrailRenderer> batchQueue;
     List<AdvanceTrailNode> nodes;
     List<AdvanceTrailNode> newPointNodes;
     List<AdvanceTrailNode> updatePointNodes;
 
     int batchIndex;
+    int activeBatchCount;
 
     AdvanceTrailRenderer currentBatch{ get { return renderers[batchIndex]; } }
 
@@ -25,6 +27,7 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
     void CreateRenderObjects()
     {
         renderers = new AdvanceTrailRenderer[batches];
+        batchQueue = new Queue<AdvanceTrailRenderer>();
         var shader = Shader.Find("Unlit/TrailBillBoard");
 
         if (shader == null)
@@ -78,8 +81,19 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         }
         newPointNodes.Clear();
 
+        activeBatchCount = 0;
         for (int i = 0; i < batches; i++)
-            renderers[i].UpdateMesh();
+        {
+            if (renderers[i].UpdateMesh())
+                activeBatchCount++;
+            else
+                RecycleBatch(renderers[i]);
+        }
+    }
+
+    void RecycleBatch(AdvanceTrailRenderer batch)
+    {
+        
     }
 
     void NextBatch()
@@ -88,11 +102,11 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         currentBatch.ResetMeshData();
     }
 
-    //    void OnGUI()
-    //    {
-    //        GUI.skin.label.fontSize = 40;
-    //        GUILayout.Label(verticesIndex.ToString());
-    //    }
+    void OnGUI()
+    {
+        GUI.skin.label.fontSize = 40;
+        GUILayout.Label(activeBatchCount.ToString());
+    }
 
     //static shortcut method
     public static void Register(AdvanceTrailNode node)

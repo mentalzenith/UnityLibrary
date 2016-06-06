@@ -4,6 +4,8 @@ using System.Collections.Generic;
 
 public class AdvanceTrailRenderer : MonoBehaviour
 {
+    public AdvanceTrailManager manager;
+
     MeshRenderer meshRenderer;
     MeshFilter meshFilter;
 
@@ -163,13 +165,13 @@ public class AdvanceTrailRenderer : MonoBehaviour
         uv2[index + 4] = data;
         uv2[index + 5] = data;
 
-        colors[verticesIndex] = lastColor;
-        colors[verticesIndex + 1] = point.color;
-        colors[verticesIndex + 2] = lastColor;
+        colors[index] = lastColor;
+        colors[index + 1] = point.color;
+        colors[index + 2] = lastColor;
 
-        colors[verticesIndex + 3] = lastColor;
-        colors[verticesIndex + 4] = point.color;
-        colors[verticesIndex + 5] = point.color;
+        colors[index + 3] = lastColor;
+        colors[index + 4] = point.color;
+        colors[index + 5] = point.color;
 
 
         tangents[index + 0] = newTangent;
@@ -179,7 +181,6 @@ public class AdvanceTrailRenderer : MonoBehaviour
         tangents[index + 3] = newTangent;
         tangents[index + 4] = newTangent;
         tangents[index + 5] = newTangent;
-
     }
 
     Vector3 UpdateLastPoint(AdvanceTrailPoint point)
@@ -215,10 +216,10 @@ public class AdvanceTrailRenderer : MonoBehaviour
         }
     }
 
-    public void UpdateMesh()
+    public bool UpdateMesh()
     {
         if (!isDirty)
-            return;
+            return false;
         
         mesh.vertices = vertices;
         mesh.triangles = triangles;
@@ -230,5 +231,6 @@ public class AdvanceTrailRenderer : MonoBehaviour
         mesh.RecalculateBounds();
 
         isDirty = false;
+        return true;
     }
 }

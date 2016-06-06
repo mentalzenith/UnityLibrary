@@ -57,7 +57,8 @@ public class AdvanceTrailTest : MonoBehaviour
 
         if (randomColor)
         {
-            color = new Color(Mathf.Sin(radian), Mathf.Cos(radian), Mathf.Tan(radian));
+//            color = new Color(Mathf.Sin(radian), Mathf.Cos(radian), Mathf.Tan(radian));
+            color = RandomContinousColor.GetRandomHSVColor();
             UpdateTrailColor();
         }
 
