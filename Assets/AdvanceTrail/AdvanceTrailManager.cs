@@ -4,12 +4,13 @@ using System.Collections.Generic;
 
 public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
 {
-    public int maxPointPerBatch = 100;
-    public int batches = 3;
+    public int maxPointPerBatch = 20;
+    public int batches = 1;
 
     AdvanceTrailRenderer[] renderers;
     List<AdvanceTrailNode> nodes;
-    List<AdvanceTrailNode> updatedNodes;
+    List<AdvanceTrailNode> newPointNodes;
+    List<AdvanceTrailNode> updatePointNodes;
 
     int batchIndex;
 
@@ -26,7 +27,7 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         renderers = new AdvanceTrailRenderer[batches];
         var shader = Shader.Find("Unlit/TrailBillBoard");
 
-        if(shader==null)
+        if (shader == null)
             Debug.LogError("Shader not found");
 
         var material = new Material(shader);
@@ -43,7 +44,8 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
     public void Init()
     {
         nodes = new List<AdvanceTrailNode>();
-        updatedNodes = new List<AdvanceTrailNode>();
+        newPointNodes = new List<AdvanceTrailNode>();
+        updatePointNodes = new List<AdvanceTrailNode>();
         batchIndex = 0;
     }
 
@@ -52,21 +54,29 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         nodes.Add(node);
     }
 
+    void NewPointInternal(AdvanceTrailNode node)
+    {
+        newPointNodes.Add(node);
+    }
+
     void UpdatePointInternal(AdvanceTrailNode node)
     {
-        updatedNodes.Add(node);
+        updatePointNodes.Add(node);
     }
 
     void LateUpdate()
     {
-        foreach (var node in updatedNodes)
+        foreach (var node in updatePointNodes)
+            node.point.UpdatePoint();
+        updatePointNodes.Clear();
+
+        foreach (var node in newPointNodes)
         {
             if (currentBatch.IsFull)
                 NextBatch();
-            currentBatch.BuildPoint(node.lastPoint);
-
+            currentBatch.BuildPoint(node.point);
         }
-        updatedNodes.Clear();
+        newPointNodes.Clear();
 
         for (int i = 0; i < batches; i++)
             renderers[i].UpdateMesh();
@@ -78,11 +88,11 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         currentBatch.ResetMeshData();
     }
 
-    void OnGUI()
-    {
-        GUI.skin.label.fontSize = 40;
-//        GUILayout.Label(verticesIndex.ToString());
-    }
+    //    void OnGUI()
+    //    {
+    //        GUI.skin.label.fontSize = 40;
+    //        GUILayout.Label(verticesIndex.ToString());
+    //    }
 
     //static shortcut method
     public static void Register(AdvanceTrailNode node)
@@ -94,9 +104,35 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
     {
         Instance.UpdatePointInternal(node);
     }
+
+    public static void AddPoint(AdvanceTrailNode node)
+    {
+        Instance.NewPointInternal(node);
+    }
 }
 
-public class LastUpdatedPoint
+public class AdvanceTrailPoint
 {
-    //    AdvanceTrailPoint;
+    public Vector3 position;
+    public float width;
+    public Color color;
+    public float life;
+
+    //internal
+    public AdvanceTrailNode node;
+    public AdvanceTrailRenderer batch;
+    public AdvanceTrailPoint lastPoint;
+    public int index;
+
+
+    public AdvanceTrailPoint(AdvanceTrailNode node)
+    {
+        this.node = node;
+    }
+
+    public void UpdatePoint()
+    {
+        if (batch != null)
+            batch.UpdatePoint(this);
+    }
 }

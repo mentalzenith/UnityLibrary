@@ -3,13 +3,16 @@ using System.Collections;
 
 public class AdvanceTrailNode : MonoBehaviour
 {
-    public int maxPoint = 10;
+    public int persistentPoints = 10;
 
     public Mode mode;
     public float pointTimeInterval = 0.1f;
     public float pointDistanceInterval;
-    public float width;
+    public float width = 1;
+    public float life = 1;
     public Color color;
+
+    public AdvanceTrailPoint point{ get; private set; }
 
     public AdvanceTrailPoint lastPoint{ get; private set; }
 
@@ -17,14 +20,14 @@ public class AdvanceTrailNode : MonoBehaviour
     AdvanceTrailPoint[] points;
     int index;
 
-    int next{ get { return index + 1 < maxPoint ? index + 1 : 0; } }
+    int next{ get { return index + 1 < persistentPoints ? index + 1 : 0; } }
 
     void Start()
     {
-        points = new AdvanceTrailPoint[maxPoint];
-        for (int i = 0; i < maxPoint; i++)
+        points = new AdvanceTrailPoint[persistentPoints];
+        for (int i = 0; i < persistentPoints; i++)
             points[i] = new AdvanceTrailPoint(this);
-        lastPoint = points[0];
+        point = points[0];
         AdvanceTrailManager.Register(this);
     }
 
@@ -39,6 +42,8 @@ public class AdvanceTrailNode : MonoBehaviour
                 UpdateDistanceMode();
                 break;
         }
+        float radian = Mathf.Lerp(0, 2 * Mathf.PI, (Time.time % 2)/2);
+        color = new Color((Mathf.Cos(radian)+1)/2,0,0);
     }
 
     float timeIntervalLeft;
@@ -48,60 +53,50 @@ public class AdvanceTrailNode : MonoBehaviour
         //update time left
         timeIntervalLeft -= Time.deltaTime;
         if (timeIntervalLeft > 0)
-            return;
-        timeIntervalLeft = pointTimeInterval;
-
-        UpdatePoint();
+            UpdateOldPoint();
+        else
+        {
+            timeIntervalLeft = pointTimeInterval;
+            UpdateNewPoint();
+        }
     }
 
     void UpdateDistanceMode()
     {        
-        float distanceSqr = Vector3.SqrMagnitude(lastPoint.position - transform.position);
+        float distanceSqr = Vector3.SqrMagnitude(point.position - transform.position);
         if (distanceSqr > pointDistanceInterval * pointDistanceInterval)
-            UpdatePoint();
+            UpdateNewPoint();
+        else
+            UpdateOldPoint();
+    }
+
+    void UpdateNewPoint()
+    {
+        index = next;
+        point = points[index];
+        point.lastPoint = lastPoint;
+        lastPoint = point;
+        UpdatePoint();
+        AdvanceTrailManager.AddPoint(this);
+    }
+
+    void UpdateOldPoint()
+    {
+        UpdatePoint();
+        AdvanceTrailManager.UpdatePoint(this);
     }
 
     void UpdatePoint()
-    {
-        index = next;
-        var point = points[index];
+    {       
         point.position = transform.position;
         point.width = width;
+        point.life = life;
         point.color = color;
-        point.lastPoint = lastPoint;
-        lastPoint = point;
-
-        AdvanceTrailManager.UpdatePoint(this);
     }
 
     public enum Mode
     {
         time,
         distance
-    }
-}
-
-public class AdvanceTrailPoint
-{
-    public Vector3 position;
-    public float width;
-    public Color color;
-    public float life;
-
-    //internal
-    public AdvanceTrailNode node;
-    public AdvanceTrailRenderer batch;
-    public int index;
-
-    public AdvanceTrailPoint lastPoint;
-
-    public AdvanceTrailPoint(AdvanceTrailNode node)
-    {
-        this.node = node;
-    }
-
-    public void UpdateNormal(Vector3 nextPoint)
-    {
-        
     }
 }

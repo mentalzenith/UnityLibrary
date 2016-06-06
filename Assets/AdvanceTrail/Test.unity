@@ -116,11 +116,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1056569274e1422cbc4d5acd514f4dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxPoint: 10
+  persistentPoints: 10
   mode: 0
-  pointTimeInterval: 0
+  pointTimeInterval: 0.15
   pointDistanceInterval: 0
-  width: 0
+  width: 0.5
+  life: 1
   color: {r: 0, g: 0, b: 0, a: 0}
 --- !u!114 &397618585
 MonoBehaviour:
