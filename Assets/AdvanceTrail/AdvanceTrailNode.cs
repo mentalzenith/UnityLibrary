@@ -42,8 +42,6 @@ public class AdvanceTrailNode : MonoBehaviour
                 UpdateDistanceMode();
                 break;
         }
-        float radian = Mathf.Lerp(0, 2 * Mathf.PI, (Time.time % 2)/2);
-        color = new Color((Mathf.Cos(radian)+1)/2,0,0);
     }
 
     float timeIntervalLeft;

@@ -139,7 +139,8 @@ public class AdvanceTrailRenderer : MonoBehaviour
         vertices[verticesIndex++] = pLast + offset;
         vertices[verticesIndex++] = pNew - offset;
         vertices[verticesIndex++] = pNew - offset;
-        Debug.DrawLine(point.position, point.lastPoint.position);
+
+//        print(lastColor+" "+point.color);
     }
 
     public void UpdatePoint(AdvanceTrailPoint point)
@@ -152,6 +153,7 @@ public class AdvanceTrailRenderer : MonoBehaviour
         var index = point.index;
         var newTangent = UpdateLastPoint(point);     
         var data = new Vector4(point.width, point.life, Time.time, 0);
+        var lastColor = point.lastPoint.color;
        
         vertices[index + 1] = point.position;
         vertices[index + 4] = point.position;
@@ -160,6 +162,15 @@ public class AdvanceTrailRenderer : MonoBehaviour
         uv2[index + 1] = data;
         uv2[index + 4] = data;
         uv2[index + 5] = data;
+
+        colors[verticesIndex] = lastColor;
+        colors[verticesIndex + 1] = point.color;
+        colors[verticesIndex + 2] = lastColor;
+
+        colors[verticesIndex + 3] = lastColor;
+        colors[verticesIndex + 4] = point.color;
+        colors[verticesIndex + 5] = point.color;
+
 
         tangents[index + 0] = newTangent;
         tangents[index + 1] = newTangent;
@@ -192,7 +203,6 @@ public class AdvanceTrailRenderer : MonoBehaviour
         tangents[index + 1] = newTangent;
         tangents[index + 4] = newTangent;
         tangents[index + 5] = newTangent;
-        Debug.DrawLine(lastPoint, nextPoint);
 
         return newTangent;
     }
@@ -216,6 +226,8 @@ public class AdvanceTrailRenderer : MonoBehaviour
         mesh.uv = uv;
         mesh.SetUVs(1, uv2);
         mesh.colors = colors;
+
+        mesh.RecalculateBounds();
 
         isDirty = false;
     }

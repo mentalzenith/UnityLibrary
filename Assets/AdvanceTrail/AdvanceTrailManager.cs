@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
 {
-    public int maxPointPerBatch = 20;
-    public int batches = 1;
+    public int maxPointPerBatch = 300;
+    public int batches = 3;
 
     AdvanceTrailRenderer[] renderers;
     List<AdvanceTrailNode> nodes;
