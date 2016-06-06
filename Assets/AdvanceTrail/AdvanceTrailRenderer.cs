@@ -4,8 +4,6 @@ using System.Collections.Generic;
 
 public class AdvanceTrailRenderer : MonoBehaviour
 {
-    public AdvanceTrailManager manager;
-
     MeshRenderer meshRenderer;
     MeshFilter meshFilter;
 
@@ -19,7 +17,7 @@ public class AdvanceTrailRenderer : MonoBehaviour
     int verticesIndex;
 
     int maxPointPerBatch;
-    float life;
+    float life = 1;
 
     List<int> newPoints;
 
@@ -232,5 +230,10 @@ public class AdvanceTrailRenderer : MonoBehaviour
 
         isDirty = false;
         return true;
+    }
+
+    public bool IsExpired
+    {
+        get{ return life <= 0; }
     }
 }

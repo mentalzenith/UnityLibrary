@@ -1,6 +1,4 @@
-﻿#warning Upgrade NOTE: unity_Scale shader variable was removed; replaced 'unity_Scale.w' with '1.0'
-
-Shader "Unlit/TrailBillBoard"
+﻿Shader "Unlit/TrailBillBoard"
 {
 	Properties
 	{
@@ -52,8 +50,8 @@ Shader "Unlit/TrailBillBoard"
 			{
 				v2f o;
 
-				float4x4 obj2WorldInverse = _World2Object * 1.0; 
- 				obj2WorldInverse[3][3] = 1.0;
+//				float4x4 obj2WorldInverse = _World2Object * 1.0; 
+// 				obj2WorldInverse[3][3] = 1.0;
 
 				///////
 // 				float3 cameraDirection = mul(obj2WorldInverse,_WorldSpaceCameraPos)-v.vertex;

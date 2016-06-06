@@ -5,10 +5,11 @@ using System.Collections.Generic;
 public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
 {
     public int maxPointPerBatch = 300;
-    public int batches = 5;
+    public int maxBatches;
+    int batchCount;
 
-    AdvanceTrailRenderer[] renderers;
     Queue<AdvanceTrailRenderer> batchQueue;
+    List<AdvanceTrailRenderer> visibleBatches;
     List<AdvanceTrailNode> nodes;
     List<AdvanceTrailNode> newPointNodes;
     List<AdvanceTrailNode> updatePointNodes;
@@ -16,32 +17,24 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
     int batchIndex;
     int activeBatchCount;
 
-    AdvanceTrailRenderer currentBatch{ get { return renderers[batchIndex]; } }
+    Shader shader;
+    Material material;
+
+    AdvanceTrailRenderer currentBatch;
 
     void Awake()
     {
         Init();
-        CreateRenderObjects();
+        NextBatch();
     }
 
-    void CreateRenderObjects()
+    AdvanceTrailRenderer CreateNewBatch()
     {
-        renderers = new AdvanceTrailRenderer[batches];
-        batchQueue = new Queue<AdvanceTrailRenderer>();
-        var shader = Shader.Find("Unlit/TrailBillBoard");
-
-        if (shader == null)
-            Debug.LogError("Shader not found");
-
-        var material = new Material(shader);
-
-        for (int i = 0; i < batches; i++)
-        {
-            var trailRenderer = new GameObject("Renderer " + i).AddComponent<AdvanceTrailRenderer>();
-            trailRenderer.gameObject.transform.SetParent(transform);
-            trailRenderer.Init(maxPointPerBatch, material);
-            renderers[i] = trailRenderer;
-        }
+        var trailRenderer = new GameObject("Renderer ").AddComponent<AdvanceTrailRenderer>();
+        trailRenderer.gameObject.transform.SetParent(transform);
+        trailRenderer.Init(maxPointPerBatch, material);
+        batchCount++;
+        return trailRenderer;
     }
 
     public void Init()
@@ -49,7 +42,13 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         nodes = new List<AdvanceTrailNode>();
         newPointNodes = new List<AdvanceTrailNode>();
         updatePointNodes = new List<AdvanceTrailNode>();
-        batchIndex = 0;
+        visibleBatches = new List<AdvanceTrailRenderer>();
+        batchQueue = new Queue<AdvanceTrailRenderer>();
+
+        shader = Shader.Find("Unlit/TrailBillBoard");
+        if (shader == null)
+            Debug.LogError("Shader not found");
+        material = new Material(shader);
     }
 
     void RegisterInternal(AdvanceTrailNode node)
@@ -82,30 +81,40 @@ public class AdvanceTrailManager : SingletonMonoManager<AdvanceTrailManager>
         newPointNodes.Clear();
 
         activeBatchCount = 0;
-        for (int i = 0; i < batches; i++)
+        for (int i = 0; i < visibleBatches.Count; i++)
         {
-            if (renderers[i].UpdateMesh())
+            if (visibleBatches[i].UpdateMesh())
                 activeBatchCount++;
-            else
-                RecycleBatch(renderers[i]);
+            if (visibleBatches[i].IsExpired)
+                RecycleBatch(visibleBatches[i]);
         }
     }
 
     void RecycleBatch(AdvanceTrailRenderer batch)
     {
-        
+        visibleBatches.Remove(batch);
+        batch.gameObject.SetActive(false);
+        batchQueue.Enqueue(batch);
     }
 
     void NextBatch()
     {
-        batchIndex = batchIndex + 1 < batches ? batchIndex + 1 : 0;
+        if (batchQueue.Count > 0)
+        {
+            currentBatch = batchQueue.Dequeue();
+            currentBatch.gameObject.SetActive(true);
+        }
+        else
+            currentBatch = CreateNewBatch();
+
+        visibleBatches.Add(currentBatch);
         currentBatch.ResetMeshData();
     }
 
     void OnGUI()
     {
         GUI.skin.label.fontSize = 40;
-        GUILayout.Label(activeBatchCount.ToString());
+        GUILayout.Label(activeBatchCount.ToString() + " / " + batchCount);
     }
 
     //static shortcut method
