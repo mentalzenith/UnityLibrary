@@ -18,7 +18,7 @@ public class AdvanceTrailTest : MonoBehaviour
     public bool randomColor;
 
     [Header("Boids")]
-    [Range(0, 100)]
+    [Range(0, 500)]
     public int boidNumber = 10;
     public float targetOffset = 1;
 
@@ -95,7 +95,7 @@ public class AdvanceTrailTest : MonoBehaviour
 
     void AdjustBoids()
     {
-        boidNumber = Mathf.Clamp(boidNumber, 1, 100);
+        boidNumber = Mathf.Clamp(boidNumber, 1, 500);
 
         int boidCount = boids.Count;
         while (boidCount++ < boidNumber)

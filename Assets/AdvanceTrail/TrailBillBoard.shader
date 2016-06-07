@@ -13,8 +13,8 @@
 		{
 			Cull back
 			//Blend SrcAlpha OneMinusSrcAlpha
-//			Blend One One
-Blend One zero
+			Blend One One
+			//Blend One zero
 			ZWrite off
 
 
