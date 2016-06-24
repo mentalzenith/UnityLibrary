@@ -1,7 +1,34 @@
-Library
-Temp
-Build
-*.sln
-*.csproj
+# Unity generated
+Temp/
+Obj/
+Library/
+Build/
+sysinfo.txt
+*.stackdump
+*.pidb.meta
+
+# Builds
+*.apk
+*.unitypackage
+ 
+# Visual Studio / MonoDevelop generated
+[Ee]xported[Oo]bj/
+.vs/
 *.userprefs
-*.DS_Store
+*.csproj
+*.pidb
+*.suo
+*.sln*
+*.user
+*.unityproj
+*.booproj
+ 
+# OS generated
+.DS_Store*
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+[Tt]humbs.db
+[Dd]esktop.ini
