@@ -43,16 +43,10 @@ namespace SafeTween
             stopping = new List<Tweener>();
         }
 
-        public static void ForceStop(Tweener tweener)
-        {
-            CreateManager();
-            adding.Remove(tweener);
-            stopping.Add(tweener);
-        }
-
         public static void Stop(Tweener tweener)
         {
             CreateManager();
+            adding.Remove(tweener);
             stopping.Add(tweener);
         }
 
@@ -90,6 +84,8 @@ namespace SafeTween
         protected Action OnBackwardAction;
         protected Action OnForwardCompletedAction;
         protected Action OnBackwardCompletedAction;
+        protected List<TimedAction> OnForwardTimedActions;
+        protected List<TimedAction> OnBackwardTimedActions;
 
         public float normalizedTime { get { return time / duration; } }
 
@@ -135,6 +131,7 @@ namespace SafeTween
         {
             foreach (var property in tweenProperties)
                 property.UpdateValue(0);
+            ResetTimedAction();
             PlayForward(0);
         }
 
@@ -212,18 +209,20 @@ namespace SafeTween
             SafeTweenManager.Stop(this);
         }
 
-        /// <summary>
-        /// Stop animation at current position 
-        /// and prevent previous call of Play() on the same frame from starting
-        /// </summary>
-        public void ForceStop()
-        {
-            SafeTweenManager.ForceStop(this);
-        }
-
         public void SetDuration(float duration)
         {
             this.duration = Mathf.Clamp(duration, this.duration, float.MaxValue);
+        }
+
+        public void ResetTimedAction()
+        {
+            if (OnForwardTimedActions != null)
+                foreach (var timedAction in OnForwardTimedActions)
+                    timedAction.triggered = false;
+
+            if (OnBackwardTimedActions != null)
+                foreach (var timedAction in OnBackwardTimedActions)
+                    timedAction.triggered = false;
         }
 
         public void Update()
@@ -237,10 +236,32 @@ namespace SafeTween
                 if (tweenProperty.isPlaying)
                     tweenProperty.Update(time);
            
+            RunTimedAction();
+
             if (!isReverse && normalizedTime > 1)
                 OnForwardComplete();
+            
             if (isReverse && normalizedTime < 0)
                 OnBackwardComplete();
+        }
+
+        void RunTimedAction()
+        {
+            if (!isReverse && OnForwardTimedActions != null)
+                foreach (var timedAction in OnForwardTimedActions)
+                    if (!timedAction.triggered && normalizedTime > timedAction.triggerTime)
+                    {
+                        timedAction.triggered = true;
+                        timedAction.action();
+                    }
+
+            if (isReverse && OnBackwardTimedActions != null)
+                foreach (var timedAction in OnBackwardTimedActions)
+                    if (!timedAction.triggered && normalizedTime < timedAction.triggerTime)
+                    {
+                        timedAction.triggered = true;
+                        timedAction.action();
+                    }
         }
 
         void OnForwardComplete()
@@ -279,6 +300,47 @@ namespace SafeTween
         {
             this.OnBackwardCompletedAction = OnForwardCompletedAction;
             return this;
+        }
+
+        public virtual Tweener OnTime(float time, Action timedAction, TimedActionType timedType = TimedActionType.Forward)
+        {
+            switch (timedType)
+            {
+                case TimedActionType.Forward:
+                    if (OnForwardTimedActions == null)
+                        OnForwardTimedActions = new List<TimedAction>();
+                    OnForwardTimedActions.Add(new TimedAction{ triggerTime = time, action = timedAction });
+                    break;
+                case TimedActionType.Backward:
+                    if (OnBackwardTimedActions == null)
+                        OnBackwardTimedActions = new List<TimedAction>();
+                    OnBackwardTimedActions.Add(new TimedAction{ triggerTime = time, action = timedAction });
+                    break;
+                case TimedActionType.Both:
+                    if (OnForwardTimedActions == null)
+                        OnForwardTimedActions = new List<TimedAction>();
+                    OnForwardTimedActions.Add(new TimedAction{ triggerTime = time, action = timedAction });
+
+                    if (OnBackwardTimedActions == null)
+                        OnBackwardTimedActions = new List<TimedAction>();
+                    OnBackwardTimedActions.Add(new TimedAction{ triggerTime = time, action = timedAction });
+                    break;
+            }
+            return this;
+        }
+
+        public enum TimedActionType
+        {
+            Forward,
+            Backward,
+            Both
+        }
+
+        protected class TimedAction
+        {
+            public bool triggered;
+            public float triggerTime;
+            public Action action;
         }
     }
 
@@ -612,23 +674,7 @@ namespace SafeTween
 
     public static class TransformExtension
     {
-        public static TweenLocalPosition MoveLocalPositionRelative(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
-        {
-            var tweener = new Tweener();
-            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, rectTransform.localPosition + target, delay, duration + delay);
-            tweener.Add(tweenProperty);
-            tweener.PlayForward();
-            return tweenProperty;
-        }
-
-        public static TweenLocalPosition MoveLocalPosition(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
-        {
-            var tweener = new Tweener();
-            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, target, delay, duration + delay);
-            tweener.Add(tweenProperty);
-            tweener.PlayForward();
-            return tweenProperty;
-        }
+        
 
         public static TweenLocalPosition MoveLocalPosition(this Transform transform, Vector3 target, float duration, float delay = 0)
         {
@@ -647,10 +693,37 @@ namespace SafeTween
             tweener.PlayForward();
             return tweenProperty;
         }
+
+        public static TweenLocalRotation RotateLocal(this Transform transform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenLocalRotation(transform, transform.localRotation.eulerAngles, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
     }
 
     public static class RectTransformExtension
     {
+        public static TweenLocalPosition MoveLocalPositionRelative(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, rectTransform.localPosition + target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+
+        public static TweenLocalPosition MoveLocalPosition(this RectTransform rectTransform, Vector3 target, float duration, float delay = 0)
+        {
+            var tweener = new Tweener();
+            var tweenProperty = new TweenLocalPosition(rectTransform, rectTransform.localPosition, target, delay, duration + delay);
+            tweener.Add(tweenProperty);
+            tweener.PlayForward();
+            return tweenProperty;
+        }
+
         public static TweenAnchorPosition MoveAnchorPosition(this RectTransform rectTransform, Vector2 target, float duration, float delay = 0)
         {
             var tweener = new Tweener();
